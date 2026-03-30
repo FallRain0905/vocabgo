@@ -1,0 +1,30 @@
+# VocabGo RPA 项目依赖
+# Python 脚本运行所需的包
+
+# 通义千问 API 调用
+requests>=2.31.0
+
+# 可选：更好的 JSON 处理
+json5>=0.9.0
+
+# 可选：彩色终端输出
+colorama>=0.4.0
+
+# 可选：更好的命令行交互
+rich>=13.0.0
+
+# 全局快捷键支持
+keyboard>=0.13.5
+
+# 图像处理
+Pillow>=10.0.0
+
+# 音频处理
+sounddevice>=0.4.6
+soundfile>=0.12.1
+
+# 自动听音翻译系统依赖
+SpeechRecognition>=3.10.0
+
+# 音频设备访问（Windows 下需要，可能需要预安装）
+# pyaudio>=0.2.11  # 注意：在 Windows 下可能需要通过 pipwin 安装

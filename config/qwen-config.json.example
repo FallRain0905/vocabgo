@@ -1,0 +1,22 @@
+{
+  "api_url": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+  "api_key": "YOUR_QWEN_API_KEY_HERE",
+  "model": "qwen-plus",
+  "temperature": 0.1,
+  "max_tokens": 100,
+  "speech_api": "aliyun",
+  "aliyun_appkey": "YOUR_ALIYUN_APPKEY_HERE",
+  "aliyun_token": "YOUR_ALIYUN_TOKEN_HERE",
+  "baidu_api_key": "YOUR_BAIDU_API_KEY_HERE",
+  "baidu_secret_key": "YOUR_BAIDU_SECRET_KEY_HERE",
+  "prompts": {
+    "listening": {
+      "system": "你是一个极速翻译引擎。请直接给出英文单词或短语的中文意思，不要解释，不要标点。",
+      "user": "请翻译以下英文：{text}"
+    },
+    "translation": {
+      "system": "你是一个英语专家。请分析以下英语句子，特别是加下划线的单词，然后提供中文翻译。",
+      "user": "请翻译以下英语句子：{text}"
+    }
+  }
+}
