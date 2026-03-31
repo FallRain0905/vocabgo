@@ -445,6 +445,11 @@ class OCRWindow:
         self.translator = translator
         self.dpi_scale = dpi_scale  # 使用传入的DPI缩放因子
 
+        # 实时翻译控制
+        self.realtime_active = False
+        self.realtime_thread = None
+        self.stop_realtime = False
+
         print(f"[INFO] 使用DPI缩放因子: {self.dpi_scale}")
 
         # 创建全屏窗口
@@ -465,7 +470,7 @@ class OCRWindow:
         # 快捷键监听
         self.hotkey_registered = False
         self.window.bind("<Destroy>", self.on_destroy)
-        self.ocr_hotkey = OCR_HOTKEY
+        self.ocr_hotkey = "~"  # 使用~键
 
         # 创建界面
         self.create_widgets()
@@ -508,7 +513,7 @@ class OCRWindow:
 
         tk.Label(
             info_frame,
-            text=f"① 点击「选区」拖选屏幕区域    ② 按 {OCR_HOTKEY.upper()} 触发识别    ③ 自动翻译",
+            text=f"① 点击「选区」拖选屏幕区域    ② 按 ~ 键启动/停止实时翻译    ③ 自动翻译",
             bg=T["bg_mid"], fg=T["fg_secondary"],
             font=T["font_small"], justify=tk.LEFT
         ).pack(anchor=tk.W)
@@ -582,11 +587,16 @@ class OCRWindow:
 
         _btn("选区", T["accent_green"], self.start_selection).pack(side=tk.LEFT, padx=(0, 4))
         _btn("清空", T["accent_gray"], self.clear_text).pack(side=tk.LEFT, padx=(0, 4))
+
+        # 实时翻译按钮
+        self.realtime_btn = _btn("实时翻译", T["accent_blue"], self.toggle_realtime)
+        self.realtime_btn.pack(side=tk.LEFT, padx=(0, 4))
+
         _btn("关闭", T["accent_red"], self.close).pack(side=tk.LEFT)
 
         tk.Label(
             button_frame,
-            text=f"  快捷键  {OCR_HOTKEY.upper()}",
+            text=f"  快捷键  ~",
             bg=T["bg_bar"], fg=T["fg_secondary"],
             font=T["font_small"]
         ).pack(side=tk.RIGHT, padx=10)
@@ -594,15 +604,18 @@ class OCRWindow:
     def register_hotkey(self):
         """注册快捷键"""
         try:
-            keyboard.add_hotkey(self.ocr_hotkey, self.trigger_ocr)
+            keyboard.add_hotkey(self.ocr_hotkey, self.toggle_realtime)
             self.hotkey_registered = True
-            print(f"[SUCCESS] 快捷键 `{OCR_HOTKEY.upper()}` 已注册")
+            print(f"[SUCCESS] 快捷键 `~` 已注册")
         except Exception as e:
             print(f"[WARNING] 快捷键注册失败: {e}")
             self.hotkey_registered = False
 
     def on_destroy(self, event):
         """窗口销毁时清理"""
+        # 停止实时翻译
+        self.stop_realtime_translation()
+
         if self.hotkey_registered:
             try:
                 keyboard.remove_hotkey(self.ocr_hotkey)
@@ -693,7 +706,7 @@ class OCRWindow:
 
             # 更新状态
             area_size = f"{x2-x1}x{y2-y1}"
-            self.status_label.config(text=f"📐 已选择区域 ({area_size})，按 `{OCR_HOTKEY.upper()}` 键识别")
+            self.status_label.config(text=f"📐 已选择区域 ({area_size})，按 ~ 键启动实时翻译")
 
     def cancel_selection(self, event):
         """取消选择"""
@@ -704,33 +717,82 @@ class OCRWindow:
         self.window.deiconify()
         self.status_label.config(text="🟢 已取消，重新选择")
 
-    def trigger_ocr(self):
-        """触发 OCR 识别"""
+    def toggle_realtime(self):
+        """切换实时翻译"""
         if not self.selected_coords:
             self.status_label.config(text="[WARNING] 请先选择区域")
             return
 
-        # 在后台线程中执行 OCR
-        threading.Thread(target=self.perform_ocr, daemon=True).start()
+        if self.realtime_active:
+            # 停止实时翻译
+            self.stop_realtime_translation()
+        else:
+            # 启动实时翻译
+            self.start_realtime_translation()
 
-    def perform_ocr(self):
-        """执行 OCR 识别"""
+    def start_realtime_translation(self):
+        """启动实时翻译"""
+        self.realtime_active = True
+        self.stop_realtime = False
+        self.status_label.config(text="🔄 实时翻译中...")
+        self.realtime_btn.config(text="停止翻译", bg=T["accent_red"])
+
+        # 启动实时翻译线程
+        self.realtime_thread = threading.Thread(target=self.realtime_translation_loop, daemon=True)
+        self.realtime_thread.start()
+
+        print("[INFO] 实时翻译已启动")
+
+    def stop_realtime_translation(self):
+        """停止实时翻译"""
+        if self.realtime_active:
+            self.realtime_active = False
+            self.stop_realtime = True
+            self.status_label.config(text="⏸️ 实时翻译已停止")
+            self.realtime_btn.config(text="实时翻译", bg=T["accent_blue"])
+            print("[INFO] 实时翻译已停止")
+
+    def realtime_translation_loop(self):
+        """实时翻译循环"""
         try:
             if not self.ocr_recognizer.is_available():
                 self.window.after(0, lambda: self.status_label.config(text="[FAILED] OCR 不可用"))
-                self.window.after(0, lambda: messagebox.showerror(
-                    "OCR 配置错误",
-                    "OCR引擎需要 Tesseract 安装\n\n请运行：\npython scripts/dependency_manager.py\n\n或查看文档：\ndocs/12-ocr-quick-start.md"
-                ))
+                self.stop_realtime = True
+                self.realtime_active = False
                 return
 
-            self.window.after(0, lambda: self.status_label.config(text="🔄 正在识别..."))
+            last_text = ""
 
-            # 直接截取选择区域（使用 bbox 参数）
+            while not self.stop_realtime:
+                # 执行OCR识别
+                text = self.perform_single_ocr()
+
+                if text and text != last_text and not text.startswith("[FAILED]"):
+                    last_text = text
+
+                    # 翻译
+                    first_line = text.split('\n')[0].strip()
+                    if first_line:
+                        chinese = self.translator.translate(first_line)
+
+                        # 更新界面
+                        self.window.after(0, lambda t=text, c=chinese: self.update_display(t, c))
+                        self.window.after(0, lambda: self.status_label.config(text="🔄 实时翻译中..."))
+
+                # 间隔0.5秒再识别一次，避免过于频繁
+                time.sleep(0.5)
+
+        except Exception as e:
+            print(f"[ERROR] 实时翻译循环异常: {e}")
+            self.window.after(0, lambda: self.status_label.config(text=f"[FAILED] 错误: {str(e)[:30]}"))
+            self.stop_realtime = True
+            self.realtime_active = False
+
+    def perform_single_ocr(self):
+        """执行单次OCR识别"""
+        try:
+            # 直接截取选择区域
             x1, y1, x2, y2 = self.selected_coords
-
-            print(f"[DEBUG] 选择坐标: {self.selected_coords}")
-            print(f"[DEBUG] DPI缩放因子: {self.dpi_scale}")
 
             # 根据DPI缩放因子调整坐标
             scaled_x1 = int(x1 * self.dpi_scale)
@@ -738,32 +800,23 @@ class OCRWindow:
             scaled_x2 = int(x2 * self.dpi_scale)
             scaled_y2 = int(y2 * self.dpi_scale)
 
-            print(f"[DEBUG] 缩放后坐标: ({scaled_x1}, {scaled_y1}, {scaled_x2}, {scaled_y2})")
-
             cropped = ImageGrab.grab(bbox=(scaled_x1, scaled_y1, scaled_x2, scaled_y2))
 
             # 执行 OCR
             extracted_text = self.ocr_recognizer.recognize_sync(cropped)
-
-            # 更新英文显示
-            self.window.after(0, lambda: self.english_text.delete(1.0, tk.END))
-            self.window.after(0, lambda: self.english_text.insert(tk.END, extracted_text))
-
-            # 翻译
-            if extracted_text and not extracted_text.startswith("[FAILED]"):
-                first_line = extracted_text.split('\n')[0].strip()
-                if first_line:
-                    chinese = self.translator.translate(first_line)
-
-                    # 更新中文显示
-                    self.window.after(0, lambda: self.chinese_text.delete(1.0, tk.END))
-                    self.window.after(0, lambda: self.chinese_text.insert(tk.END, chinese))
-
-            self.window.after(0, lambda: self.status_label.config(text="[SUCCESS] 识别完成"))
+            return extracted_text
 
         except Exception as e:
-            self.window.after(0, lambda: self.status_label.config(text=f"[FAILED] 失败: {str(e)[:30]}"))
             print(f"[ERROR] OCR识别异常: {e}")
+            return f"[FAILED] {str(e)}"
+
+    def update_display(self, english_text, chinese_text):
+        """更新显示内容"""
+        self.english_text.delete(1.0, tk.END)
+        self.english_text.insert(tk.END, english_text)
+
+        self.chinese_text.delete(1.0, tk.END)
+        self.chinese_text.insert(tk.END, chinese_text)
 
     def clear_text(self):
         """清空文本"""
