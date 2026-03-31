@@ -450,6 +450,9 @@ class OCRWindow:
         self.realtime_thread = None
         self.stop_realtime = False
 
+        # 主题引用
+        self.T = THEME
+
         print(f"[INFO] 使用DPI缩放因子: {self.dpi_scale}")
 
         # 创建全屏窗口
@@ -589,7 +592,7 @@ class OCRWindow:
         _btn("清空", T["accent_gray"], self.clear_text).pack(side=tk.LEFT, padx=(0, 4))
 
         # 实时翻译按钮
-        self.realtime_btn = _btn("实时翻译", T["accent_blue"], self.toggle_realtime)
+        self.realtime_btn = _btn("实时翻译", self.T["accent_blue"], self.toggle_realtime)
         self.realtime_btn.pack(side=tk.LEFT, padx=(0, 4))
 
         _btn("关闭", T["accent_red"], self.close).pack(side=tk.LEFT)
@@ -735,7 +738,7 @@ class OCRWindow:
         self.realtime_active = True
         self.stop_realtime = False
         self.status_label.config(text="🔄 实时翻译中...")
-        self.realtime_btn.config(text="停止翻译", bg=T["accent_red"])
+        self.realtime_btn.config(text="停止翻译", bg=self.T["accent_red"])
 
         # 启动实时翻译线程
         self.realtime_thread = threading.Thread(target=self.realtime_translation_loop, daemon=True)
@@ -749,7 +752,7 @@ class OCRWindow:
             self.realtime_active = False
             self.stop_realtime = True
             self.status_label.config(text="⏸️ 实时翻译已停止")
-            self.realtime_btn.config(text="实时翻译", bg=T["accent_blue"])
+            self.realtime_btn.config(text="实时翻译", bg=self.T["accent_blue"])
             print("[INFO] 实时翻译已停止")
 
     def realtime_translation_loop(self):
