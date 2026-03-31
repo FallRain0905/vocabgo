@@ -62,6 +62,41 @@ sys.path.insert(0, str(project_root))
 from ocr_engine_v2 import VocabGoOCR
 from baidu_ocr import BaiduOCR
 
+# ================= UI 主题配置 =================
+THEME = {
+    # 背景色
+    "bg_dark":      "#0F1117",   # 最深背景
+    "bg_mid":       "#1A1D27",   # 卡片背景
+    "bg_light":     "#252836",   # 输入框背景
+    "bg_bar":       "#13151E",   # 标题栏 / 底栏
+
+    # 文字
+    "fg_primary":   "#E8EAF0",   # 主文字
+    "fg_secondary": "#6B7280",   # 次要文字
+    "fg_accent_en": "#60A5FA",   # 英文标签（蓝）
+    "fg_accent_zh": "#FBBF24",   # 中文标签（金）
+    "fg_section":   "#A78BFA",   # 设置分区标题（紫）
+
+    # 强调色
+    "accent_blue":  "#3B82F6",
+    "accent_green": "#10B981",
+    "accent_red":   "#EF4444",
+    "accent_gray":  "#4B5563",
+    "accent_amber": "#F59E0B",
+    "accent_purple":"#8B5CF6",
+
+    # 字体
+    "font_title":   ("Microsoft YaHei UI", 11, "bold"),
+    "font_body":    ("Microsoft YaHei UI", 10),
+    "font_small":   ("Microsoft YaHei UI", 9),
+    "font_en_text": ("Consolas", 13),
+    "font_zh_text": ("Microsoft YaHei UI", 13),
+    "font_status":  ("Microsoft YaHei UI", 9),
+    "font_label":   ("Microsoft YaHei UI", 10, "bold"),
+    "font_section": ("Microsoft YaHei UI", 10, "bold"),
+    "font_btn":     ("Microsoft YaHei UI", 9, "bold"),
+}
+
 # ================= 配置加载 =================
 CONFIG_FILE = project_root / "config" / "qwen-config.json"
 
@@ -417,8 +452,8 @@ class OCRWindow:
         self.window.title("VocabGo OCR")
         self.window.geometry("800x600+300+100")
         self.window.attributes('-topmost', True)
-        self.window.configure(bg='#2D2D2D')
-        self.window.attributes('-alpha', 0.95)  # 稍微透明
+        self.window.configure(bg=THEME["bg_dark"])
+        self.window.attributes('-alpha', 0.96)  # 稍微透明
 
         # 选择区域参数
         self.selection_start = None
@@ -454,140 +489,107 @@ class OCRWindow:
 
     def create_widgets(self):
         """创建界面组件"""
-        # 标题栏
-        title_frame = tk.Frame(self.window, bg='#3D3D3D', height=30)
+        T = THEME
+
+        # ── 标题栏 ──────────────────────────────────
+        title_frame = tk.Frame(self.window, bg=T["bg_bar"], height=36)
         title_frame.pack(fill=tk.X, side=tk.TOP)
+        title_frame.pack_propagate(False)
 
         tk.Label(
-            title_frame,
-            text="🖼️ OCR 文字识别",
-            bg='#3D3D3D',
-            fg='white',
-            font=('Arial', 12, 'bold')
-        ).pack(pady=5)
+            title_frame, text="  OCR  ·  文字识别",
+            bg=T["bg_bar"], fg=T["fg_primary"],
+            font=T["font_title"]
+        ).pack(side=tk.LEFT, padx=8)
 
-        # 提示信息
-        info_frame = tk.Frame(self.window, bg='#2D2D2D', padx=10, pady=10)
-        info_frame.pack(fill=tk.X)
+        # ── 提示 ─────────────────────────────────────
+        info_frame = tk.Frame(self.window, bg=T["bg_mid"], padx=12, pady=8)
+        info_frame.pack(fill=tk.X, padx=10, pady=(8, 0))
 
         tk.Label(
             info_frame,
-            text=f"📋 使用说明：\n"
-                 f"1. 点击'选择区域'按钮，用鼠标拖动选择屏幕区域\n"
-                 f"2. 按 `{OCR_HOTKEY.upper()}` 键触发 OCR 识别\n"
-                 f"3. 识别结果会自动翻译",
-            bg='#2D2D2D',
-            fg='#9E9E9E',
-            font=('SimHei', 9),
-            justify=tk.LEFT
+            text=f"① 点击「选区」拖选屏幕区域    ② 按 {OCR_HOTKEY.upper()} 触发识别    ③ 自动翻译",
+            bg=T["bg_mid"], fg=T["fg_secondary"],
+            font=T["font_small"], justify=tk.LEFT
         ).pack(anchor=tk.W)
 
-        # 主内容区域
-        main_frame = tk.Frame(self.window, bg='#2D2D2D', padx=10, pady=10)
+        # ── 主内容区域 ────────────────────────────────
+        main_frame = tk.Frame(self.window, bg=T["bg_dark"], padx=10, pady=10)
         main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # 英文显示区域
-        tk.Label(
-            main_frame,
-            text="🇺🇸 识别文字",
-            bg='#2D2D2D',
-            fg='#4FC3F7',
-            font=('Arial', 10, 'bold')
-        ).pack(anchor=tk.W, pady=(0, 5))
+        # 英文区
+        en_hdr = tk.Frame(main_frame, bg=T["bg_dark"])
+        en_hdr.pack(fill=tk.X, pady=(0, 4))
+        tk.Label(en_hdr, text="EN", bg=T["bg_dark"],
+                 fg=T["fg_accent_en"], font=T["font_label"]).pack(side=tk.LEFT)
+        tk.Label(en_hdr, text=" 识别文字", bg=T["bg_dark"],
+                 fg=T["fg_secondary"], font=T["font_small"]).pack(side=tk.LEFT)
 
         self.english_text = scrolledtext.ScrolledText(
-            main_frame,
-            height=6,
-            bg='#3D3D3D',
-            fg='white',
-            font=('Arial', 12),
-            wrap=tk.WORD,
-            relief=tk.FLAT
+            main_frame, height=6,
+            bg=T["bg_mid"], fg=T["fg_primary"],
+            font=T["font_en_text"], wrap=tk.WORD,
+            relief=tk.FLAT, insertbackground=T["fg_primary"],
+            padx=8, pady=6
         )
-        self.english_text.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        self.english_text.pack(fill=tk.BOTH, expand=True, pady=(0, 8))
 
-        # 中文显示区域
-        tk.Label(
-            main_frame,
-            text="🇨🇳 中文翻译",
-            bg='#2D2D2D',
-            fg='#FFA726',
-            font=('Arial', 10, 'bold')
-        ).pack(anchor=tk.W, pady=(0, 5))
+        # 分隔线
+        tk.Frame(main_frame, bg=T["bg_light"], height=1).pack(fill=tk.X, pady=(0, 8))
+
+        # 中文区
+        zh_hdr = tk.Frame(main_frame, bg=T["bg_dark"])
+        zh_hdr.pack(fill=tk.X, pady=(0, 4))
+        tk.Label(zh_hdr, text="ZH", bg=T["bg_dark"],
+                 fg=T["fg_accent_zh"], font=T["font_label"]).pack(side=tk.LEFT)
+        tk.Label(zh_hdr, text=" 中文翻译", bg=T["bg_dark"],
+                 fg=T["fg_secondary"], font=T["font_small"]).pack(side=tk.LEFT)
 
         self.chinese_text = scrolledtext.ScrolledText(
-            main_frame,
-            height=4,
-            bg='#3D3D3D',
-            fg='white',
-            font=('SimHei', 12),
-            wrap=tk.WORD,
-            relief=tk.FLAT
+            main_frame, height=4,
+            bg=T["bg_mid"], fg=T["fg_primary"],
+            font=T["font_zh_text"], wrap=tk.WORD,
+            relief=tk.FLAT, insertbackground=T["fg_primary"],
+            padx=8, pady=6
         )
-        self.chinese_text.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
+        self.chinese_text.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
 
-        # 状态栏
-        status_frame = tk.Frame(main_frame, bg='#2D2D2D')
+        # 状态
+        status_frame = tk.Frame(main_frame, bg=T["bg_dark"])
         status_frame.pack(fill=tk.X)
-
         self.status_label = tk.Label(
-            status_frame,
-            text="🟢 等待选择区域...",
-            bg='#2D2D2D',
-            fg='#9E9E9E',
-            font=('Arial', 9)
+            status_frame, text="● 等待选择区域...",
+            bg=T["bg_dark"], fg=T["fg_secondary"],
+            font=T["font_status"]
         )
         self.status_label.pack(side=tk.LEFT)
 
-        # 按钮区域
-        button_frame = tk.Frame(self.window, bg='#3D3D3D', height=40)
+        # ── 底部工具栏 ────────────────────────────────
+        button_frame = tk.Frame(self.window, bg=T["bg_bar"], height=44)
         button_frame.pack(fill=tk.X, side=tk.BOTTOM)
+        button_frame.pack_propagate(False)
 
-        # 选择区域按钮
-        select_button = tk.Button(
-            button_frame,
-            text="📐 选择区域",
-            bg='#4CAF50',
-            fg='white',
-            font=('Arial', 9),
-            command=self.start_selection,
-            relief=tk.FLAT
-        )
-        select_button.pack(side=tk.LEFT, padx=5, pady=5)
+        inner = tk.Frame(button_frame, bg=T["bg_bar"])
+        inner.pack(side=tk.LEFT, fill=tk.Y, padx=6, pady=6)
 
-        # 快捷键提示
-        hotkey_label = tk.Label(
-            button_frame,
-            text=f"⌨️ 按 `{OCR_HOTKEY.upper()}` 键识别",
-            bg='#3D3D3D',
-            fg='#9E9E9E',
-            font=('Arial', 9)
-        )
-        hotkey_label.pack(side=tk.LEFT, padx=15)
+        def _btn(text, bg, cmd):
+            return tk.Button(
+                inner, text=text, bg=bg, fg=T["fg_primary"],
+                font=T["font_btn"], relief=tk.FLAT,
+                activebackground=bg, activeforeground=T["fg_primary"],
+                bd=0, padx=10, pady=4, cursor="hand2", command=cmd
+            )
 
-        # 清空按钮
-        clear_button = tk.Button(
-            button_frame,
-            text="🗑️ 清空",
-            bg='#9E9E9E',
-            fg='white',
-            font=('Arial', 9),
-            command=self.clear_text,
-            relief=tk.FLAT
-        )
-        clear_button.pack(side=tk.LEFT, padx=5, pady=5)
+        _btn("选区", T["accent_green"], self.start_selection).pack(side=tk.LEFT, padx=(0, 4))
+        _btn("清空", T["accent_gray"], self.clear_text).pack(side=tk.LEFT, padx=(0, 4))
+        _btn("关闭", T["accent_red"], self.close).pack(side=tk.LEFT)
 
-        # 关闭按钮
-        close_button = tk.Button(
+        tk.Label(
             button_frame,
-            text="❌ 关闭",
-            bg='#F44336',
-            fg='white',
-            font=('Arial', 9),
-            command=self.close,
-            relief=tk.FLAT
-        )
-        close_button.pack(side=tk.RIGHT, padx=5, pady=5)
+            text=f"  快捷键  {OCR_HOTKEY.upper()}",
+            bg=T["bg_bar"], fg=T["fg_secondary"],
+            font=T["font_small"]
+        ).pack(side=tk.RIGHT, padx=10)
 
     def register_hotkey(self):
         """注册快捷键"""
@@ -785,8 +787,8 @@ class TranslatorGUI:
         self.root.attributes('-topmost', True)  # 置顶
 
         # 窗口大小和位置
-        self.root.geometry("500x450+100+100")
-        self.root.configure(bg='#2D2D2D')
+        self.root.geometry("500x460+100+100")
+        self.root.configure(bg=THEME["bg_dark"])
 
         # 可拖拽
         self.root.bind('<Button-1>', self.start_move)
@@ -807,169 +809,130 @@ class TranslatorGUI:
         # 自动启动录音
         self.start_listening()
 
+    def _make_btn(self, parent, text, bg, command, width=None):
+        """统一按钮样式工厂"""
+        kw = dict(
+            text=text, bg=bg, fg=THEME["fg_primary"],
+            font=THEME["font_btn"], relief=tk.FLAT,
+            activebackground=bg, activeforeground=THEME["fg_primary"],
+            bd=0, padx=10, pady=4,
+            cursor="hand2", command=command
+        )
+        if width:
+            kw["width"] = width
+        return tk.Button(parent, **kw)
+
     def create_widgets(self):
         """创建界面组件"""
+        T = THEME
 
-        # 标题栏
-        title_frame = tk.Frame(self.root, bg='#3D3D3D', height=30)
+        # ── 标题栏 ──────────────────────────────────────
+        title_frame = tk.Frame(self.root, bg=T["bg_bar"], height=36)
         title_frame.pack(fill=tk.X, side=tk.TOP)
+        title_frame.pack_propagate(False)
 
         api_name = "阿里云" if SPEECH_API == "aliyun" else "百度"
-        title_label = tk.Label(
+        tk.Label(
             title_frame,
-            text=f"🎧 语音识别翻译 ({api_name})",
-            bg='#3D3D3D',
-            fg='white',
-            font=('Arial', 12, 'bold')
-        )
-        title_label.pack(pady=5)
+            text=f"  VocabGo  ·  语音翻译  ({api_name})",
+            bg=T["bg_bar"], fg=T["fg_primary"],
+            font=T["font_title"]
+        ).pack(side=tk.LEFT, padx=8, pady=0)
 
-        # 主内容区域
-        main_frame = tk.Frame(self.root, bg='#2D2D2D', padx=10, pady=10)
+        # ── 主内容区域 ──────────────────────────────────
+        main_frame = tk.Frame(self.root, bg=T["bg_dark"], padx=12, pady=10)
         main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # 英文显示区域
-        tk.Label(
-            main_frame,
-            text="🇺🇸 英文识别",
-            bg='#2D2D2D',
-            fg='#4FC3F7',
-            font=('Arial', 10, 'bold')
-        ).pack(anchor=tk.W, pady=(0, 5))
+        # 英文识别区
+        en_header = tk.Frame(main_frame, bg=T["bg_dark"])
+        en_header.pack(fill=tk.X, pady=(0, 4))
+        tk.Label(en_header, text="EN", bg=T["bg_dark"],
+                 fg=T["fg_accent_en"], font=T["font_label"]).pack(side=tk.LEFT)
+        tk.Label(en_header, text=" 英文识别", bg=T["bg_dark"],
+                 fg=T["fg_secondary"], font=T["font_small"]).pack(side=tk.LEFT)
 
         self.english_text = scrolledtext.ScrolledText(
-            main_frame,
-            height=5,
-            bg='#3D3D3D',
-            fg='white',
-            font=('Arial', 14),
-            wrap=tk.WORD,
-            relief=tk.FLAT
+            main_frame, height=5,
+            bg=T["bg_mid"], fg=T["fg_primary"],
+            font=T["font_en_text"], wrap=tk.WORD,
+            relief=tk.FLAT, insertbackground=T["fg_primary"],
+            selectbackground=T["accent_blue"],
+            padx=8, pady=6
         )
-        self.english_text.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
+        self.english_text.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
 
-        # 中文显示区域
-        tk.Label(
-            main_frame,
-            text="🇨🇳 中文翻译",
-            bg='#2D2D2D',
-            fg='#FFA726',
-            font=('Arial', 10, 'bold')
-        ).pack(anchor=tk.W, pady=(0, 5))
+        # 分隔线
+        tk.Frame(main_frame, bg=T["bg_light"], height=1).pack(fill=tk.X, pady=(0, 10))
+
+        # 中文翻译区
+        zh_header = tk.Frame(main_frame, bg=T["bg_dark"])
+        zh_header.pack(fill=tk.X, pady=(0, 4))
+        tk.Label(zh_header, text="ZH", bg=T["bg_dark"],
+                 fg=T["fg_accent_zh"], font=T["font_label"]).pack(side=tk.LEFT)
+        tk.Label(zh_header, text=" 中文翻译", bg=T["bg_dark"],
+                 fg=T["fg_secondary"], font=T["font_small"]).pack(side=tk.LEFT)
 
         self.chinese_text = scrolledtext.ScrolledText(
-            main_frame,
-            height=5,
-            bg='#3D3D3D',
-            fg='white',
-            font=('SimHei', 14),
-            wrap=tk.WORD,
-            relief=tk.FLAT
+            main_frame, height=5,
+            bg=T["bg_mid"], fg=T["fg_primary"],
+            font=T["font_zh_text"], wrap=tk.WORD,
+            relief=tk.FLAT, insertbackground=T["fg_primary"],
+            selectbackground=T["accent_blue"],
+            padx=8, pady=6
         )
-        self.chinese_text.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
+        self.chinese_text.pack(fill=tk.BOTH, expand=True, pady=(0, 8))
 
-        # 状态栏
-        status_frame = tk.Frame(main_frame, bg='#2D2D2D')
+        # 状态栏（嵌在 main_frame 底部）
+        status_frame = tk.Frame(main_frame, bg=T["bg_dark"])
         status_frame.pack(fill=tk.X)
-
         self.status_label = tk.Label(
-            status_frame,
-            text="🔴 等待音频...",
-            bg='#2D2D2D',
-            fg='#9E9E9E',
-            font=('Arial', 9)
+            status_frame, text="● 等待音频...",
+            bg=T["bg_dark"], fg=T["fg_secondary"],
+            font=T["font_status"]
         )
         self.status_label.pack(side=tk.LEFT)
 
-        # 按钮区域
-        button_frame = tk.Frame(self.root, bg='#3D3D3D', height=40)
+        # ── 底部工具栏 ──────────────────────────────────
+        button_frame = tk.Frame(self.root, bg=T["bg_bar"], height=44)
         button_frame.pack(fill=tk.X, side=tk.BOTTOM)
+        button_frame.pack_propagate(False)
 
-        # 暂停/继续按钮
-        self.pause_button = tk.Button(
-            button_frame,
-            text="⏸️ 暂停",
-            bg='#FF5722',
-            fg='white',
-            font=('Arial', 9),
-            command=self.toggle_pause,
-            relief=tk.FLAT
-        )
-        self.pause_button.pack(side=tk.LEFT, padx=5, pady=5)
+        inner = tk.Frame(button_frame, bg=T["bg_bar"])
+        inner.pack(side=tk.LEFT, fill=tk.Y, padx=6, pady=6)
 
-        # 清空按钮
-        clear_button = tk.Button(
-            button_frame,
-            text="🗑️ 清空",
-            bg='#9E9E9E',
-            fg='white',
-            font=('Arial', 9),
-            command=self.clear_text,
-            relief=tk.FLAT
-        )
-        clear_button.pack(side=tk.LEFT, padx=5, pady=5)
+        self.pause_button = self._make_btn(inner, "⏸  暂停", T["accent_red"], self.toggle_pause)
+        self.pause_button.pack(side=tk.LEFT, padx=(0, 4))
 
-        # 设置透明度
-        opacity_frame = tk.Frame(button_frame, bg='#3D3D3D')
-        opacity_frame.pack(side=tk.RIGHT, padx=5)
+        self._make_btn(inner, "清空", T["accent_gray"], self.clear_text).pack(side=tk.LEFT, padx=(0, 4))
+        self._make_btn(inner, "⚙  设置", T["accent_purple"], self.open_settings).pack(side=tk.LEFT, padx=(0, 4))
+        self._make_btn(inner, "OCR", T["accent_amber"], self.open_ocr_window).pack(side=tk.LEFT)
 
-        tk.Label(
-            opacity_frame,
-            text="透明度:",
-            bg='#3D3D3D',
-            fg='white',
-            font=('Arial', 8)
-        ).pack(side=tk.LEFT)
+        # 右侧：透明度 + 置顶
+        right = tk.Frame(button_frame, bg=T["bg_bar"])
+        right.pack(side=tk.RIGHT, fill=tk.Y, padx=8, pady=6)
+
+        self.topmost_var = tk.BooleanVar(value=True)
+        tk.Checkbutton(
+            right, text="置顶", variable=self.topmost_var,
+            command=self.toggle_topmost,
+            bg=T["bg_bar"], fg=T["fg_secondary"],
+            selectcolor=T["accent_green"],
+            activebackground=T["bg_bar"],
+            font=T["font_small"]
+        ).pack(side=tk.RIGHT, padx=(6, 0))
+
+        tk.Label(right, text="透明", bg=T["bg_bar"],
+                 fg=T["fg_secondary"], font=T["font_small"]).pack(side=tk.LEFT)
 
         self.opacity_scale = tk.Scale(
-            opacity_frame,
-            from_=60, to=100,
-            orient=tk.HORIZONTAL,
-            bg='#3D3D3D',
-            fg='white',
-            length=100,
+            right, from_=40, to=100, orient=tk.HORIZONTAL,
+            bg=T["bg_bar"], fg=T["fg_secondary"],
+            troughcolor=T["bg_mid"], highlightthickness=0,
+            length=80, showvalue=False,
             command=self.update_opacity
         )
         self.opacity_scale.set(90)
-        self.opacity_scale.pack(side=tk.LEFT, padx=5)
-
-        # 设置按钮
-        settings_button = tk.Button(
-            button_frame,
-            text="⚙️ 设置",
-            bg='#607D8B',
-            fg='white',
-            font=('Arial', 9),
-            command=self.open_settings,
-            relief=tk.FLAT
-        )
-        settings_button.pack(side=tk.LEFT, padx=5, pady=5)
-
-        # OCR 窗口按钮
-        ocr_button = tk.Button(
-            button_frame,
-            text="🖼️ OCR",
-            bg='#FFC107',
-            fg='white',
-            font=('Arial', 9),
-            command=self.open_ocr_window,
-            relief=tk.FLAT
-        )
-        ocr_button.pack(side=tk.LEFT, padx=5, pady=5)
-
-        # 窗口置顶切换
-        self.topmost_var = tk.BooleanVar(value=True)
-        topmost_check = tk.Checkbutton(
-            button_frame,
-            text="置顶",
-            variable=self.topmost_var,
-            command=self.toggle_topmost,
-            bg='#3D3D3D',
-            fg='white',
-            selectcolor='#4CAF50',
-            activebackground='#3D3D3D'
-        )
-        topmost_check.pack(side=tk.RIGHT, padx=5)
+        self.opacity_scale.pack(side=tk.LEFT, padx=4)
 
     def start_move(self, event):
         """开始拖拽"""
@@ -1000,14 +963,14 @@ class TranslatorGUI:
         if hasattr(self, 'is_paused'):
             self.is_paused = not self.is_paused
             if self.is_paused:
-                self.pause_button.config(text="▶️ 继续", bg='#4CAF50')
-                self.update_status("⏸️ 已暂停")
+                self.pause_button.config(text="▶  继续", bg=THEME["accent_green"])
+                self.update_status("● 已暂停")
             else:
-                self.pause_button.config(text="⏸️ 暂停", bg='#FF5722')
-                self.update_status("🟢 继续监听...")
+                self.pause_button.config(text="⏸  暂停", bg=THEME["accent_red"])
+                self.update_status("● 继续监听...")
         else:
             self.is_paused = False
-            self.pause_button.config(text="⏸️ 暂停", bg='#FF5722')
+            self.pause_button.config(text="⏸  暂停", bg=THEME["accent_red"])
 
     def clear_text(self):
         """清空文本"""
@@ -1126,8 +1089,8 @@ class SettingsWindow:
 
         self.window = tk.Toplevel(parent)
         self.window.title("设置")
-        self.window.geometry("500x600+200+100")
-        self.window.configure(bg='#2D2D2D')
+        self.window.geometry("500x620+200+100")
+        self.window.configure(bg=THEME["bg_dark"])
         self.window.transient(parent)
         self.window.grab_set()
 
@@ -1151,210 +1114,205 @@ class SettingsWindow:
         self.create_widgets()
 
     def create_widgets(self):
-        title_frame = tk.Frame(self.window, bg='#3D3D3D', height=35)
+        T = THEME
+
+        # 标题栏
+        title_frame = tk.Frame(self.window, bg=T["bg_bar"], height=36)
         title_frame.pack(fill=tk.X, side=tk.TOP)
+        title_frame.pack_propagate(False)
 
         tk.Label(
-            title_frame,
-            text="⚙️ VocabGo 翻译助手设置",
-            bg='#3D3D3D',
-            fg='white',
-            font=('Arial', 12, 'bold')
-        ).pack(pady=10)
+            title_frame, text="  ⚙  VocabGo  ·  设置",
+            bg=T["bg_bar"], fg=T["fg_primary"],
+            font=T["font_title"]
+        ).pack(side=tk.LEFT, padx=8)
 
-        main_frame = tk.Frame(self.window, bg='#2D2D2D', padx=15, pady=10)
-        main_frame.pack(fill=tk.BOTH, expand=True)
+        # 可滚动主框架
+        canvas = tk.Canvas(self.window, bg=T["bg_dark"], highlightthickness=0)
+        scrollbar = tk.Scrollbar(self.window, orient="vertical", command=canvas.yview,
+                                  bg=T["bg_mid"], troughcolor=T["bg_dark"])
+        main_frame = tk.Frame(canvas, bg=T["bg_dark"], padx=15, pady=10)
+
+        main_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=main_frame, anchor="nw", width=500)
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(10, 0))
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
         # OCR设置区域
-        self.create_section(main_frame, "📷 OCR功能设置", 0)
-        ocr_frame = tk.Frame(main_frame, bg='#2D2D2D')
+        self.create_section(main_frame, "📷  OCR 功能", 0)
+        ocr_frame = tk.Frame(main_frame, bg=THEME["bg_dark"])
         ocr_frame.pack(fill=tk.X, pady=(0, 15))
 
         # OCR引擎选择
-        ocr_engine_frame = tk.Frame(ocr_frame, bg='#2D2D2D')
+        ocr_engine_frame = tk.Frame(ocr_frame, bg=THEME["bg_dark"])
         ocr_engine_frame.pack(fill=tk.X, pady=(0, 10))
 
         tk.Label(
-            ocr_engine_frame,
-            text="OCR引擎:",
-            bg='#2D2D2D',
-            fg='white',
-            font=('Arial', 10)
+            ocr_engine_frame, text="引擎:",
+            bg=THEME["bg_dark"], fg=THEME["fg_primary"],
+            font=THEME["font_body"]
         ).pack(side=tk.LEFT)
 
         # OCR引擎选择变量
         self.ocr_engine_var = tk.StringVar(value=OCR_ENGINE)
         ocr_engine_choices = ["tesseract", "baidu"]
 
-        # Tesseract选项
-        tk.Radiobutton(
-            ocr_engine_frame,
-            text="Tesseract (免费，本地)",
-            variable=self.ocr_engine_var,
-            value="tesseract",
-            bg='#2D2D2D',
-            fg='white',
-            selectcolor='#4CAF50',
-            activebackground='#2D2D2D',
-            font=('Arial', 9)
-        ).pack(side=tk.LEFT, padx=(10, 0))
+        def _radio(parent, text, val, cmd):
+            return tk.Radiobutton(
+                parent, text=text, variable=self.ocr_engine_var, value=val,
+                bg=THEME["bg_dark"], fg=THEME["fg_primary"],
+                selectcolor=THEME["accent_green"],
+                activebackground=THEME["bg_dark"],
+                font=THEME["font_small"], command=cmd
+            )
 
-        # 百度OCR选项
-        tk.Radiobutton(
-            ocr_engine_frame,
-            text="百度OCR (云服务)",
-            variable=self.ocr_engine_var,
-            value="baidu",
-            bg='#2D2D2D',
-            fg='white',
-            selectcolor='#4CAF50',
-            activebackground='#2D2D2D',
-            font=('Arial', 9)
-        ).pack(side=tk.LEFT, padx=(10, 0))
+        _radio(ocr_engine_frame, "Tesseract（本地）", "tesseract",
+               self.toggle_ocr_engine).pack(side=tk.LEFT, padx=(10, 0))
+        _radio(ocr_engine_frame, "百度OCR（云端）", "baidu",
+               self.toggle_ocr_engine).pack(side=tk.LEFT, padx=(10, 0))
 
         # 启用OCR
         tk.Checkbutton(
-            ocr_frame,
-            text="启用OCR功能",
+            ocr_frame, text="启用 OCR 功能",
             variable=self.ocr_enabled_var,
-            bg='#2D2D2D',
-            fg='white',
-            selectcolor='#4CAF50',
-            activebackground='#2D2D2D',
-            font=('Arial', 10)
+            bg=THEME["bg_dark"], fg=THEME["fg_primary"],
+            selectcolor=THEME["accent_green"],
+            activebackground=THEME["bg_dark"],
+            font=THEME["font_body"]
         ).pack(anchor=tk.W)
 
         # OCR快捷键
-        ocr_hotkey_frame = tk.Frame(ocr_frame, bg='#2D2D2D')
+        ocr_hotkey_frame = tk.Frame(ocr_frame, bg=THEME["bg_dark"])
         ocr_hotkey_frame.pack(fill=tk.X, pady=(10, 0))
 
         tk.Label(
-            ocr_hotkey_frame,
-            text="OCR快捷键:",
-            bg='#2D2D2D',
-            fg='white',
-            font=('Arial', 9)
+            ocr_hotkey_frame, text="快捷键:",
+            bg=THEME["bg_dark"], fg=THEME["fg_primary"],
+            font=THEME["font_small"]
         ).pack(side=tk.LEFT)
 
         tk.Entry(
-            ocr_hotkey_frame,
-            textvariable=self.ocr_hotkey_var,
-            bg='#3D3D3D',
-            fg='white',
-            font=('Arial', 10),
-            width=15
+            ocr_hotkey_frame, textvariable=self.ocr_hotkey_var,
+            bg=THEME["bg_mid"], fg=THEME["fg_primary"],
+            font=THEME["font_body"], relief=tk.FLAT,
+            insertbackground=THEME["fg_primary"], width=15
         ).pack(side=tk.LEFT, padx=(10, 0))
 
         # OCR语言
-        ocr_lang_frame = tk.Frame(ocr_frame, bg='#2D2D2D')
+        ocr_lang_frame = tk.Frame(ocr_frame, bg=THEME["bg_dark"])
         ocr_lang_frame.pack(fill=tk.X, pady=(10, 0))
 
         tk.Label(
-            ocr_lang_frame,
-            text="OCR识别语言:",
-            bg='#2D2D2D',
-            fg='white',
-            font=('Arial', 9)
+            ocr_lang_frame, text="识别语言:",
+            bg=THEME["bg_dark"], fg=THEME["fg_primary"],
+            font=THEME["font_small"]
         ).pack(side=tk.LEFT)
 
         ocr_lang_choices = ["chi_sim+eng", "eng", "chi_sim"]
         ocr_lang_combo = ttk.Combobox(
-            ocr_lang_frame,
-            values=ocr_lang_choices,
+            ocr_lang_frame, values=ocr_lang_choices,
             textvariable=self.ocr_lang_var,
-            state="readonly",
-            width=15
+            state="readonly", width=15
         )
         ocr_lang_combo.pack(side=tk.LEFT, padx=(10, 0))
 
         # DPI缩放因子
-        dpi_scale_frame = tk.Frame(ocr_frame, bg='#2D2D2D')
+        dpi_scale_frame = tk.Frame(ocr_frame, bg=THEME["bg_dark"])
         dpi_scale_frame.pack(fill=tk.X, pady=(10, 0))
 
         tk.Label(
-            dpi_scale_frame,
-            text="DPI缩放因子:",
-            bg='#2D2D2D',
-            fg='white',
-            font=('Arial', 9)
+            dpi_scale_frame, text="DPI缩放:",
+            bg=THEME["bg_dark"], fg=THEME["fg_primary"],
+            font=THEME["font_small"]
         ).pack(side=tk.LEFT)
 
         dpi_scale_entry = tk.Entry(
-            dpi_scale_frame,
-            bg='#3D3D3D',
-            fg='white',
-            font=('Arial', 10),
-            width=8,
-            textvariable=self.dpi_scale_var
+            dpi_scale_frame, bg=THEME["bg_mid"], fg=THEME["fg_primary"],
+            font=THEME["font_body"], relief=tk.FLAT,
+            insertbackground=THEME["fg_primary"],
+            width=8, textvariable=self.dpi_scale_var
         )
         dpi_scale_entry.pack(side=tk.LEFT, padx=(10, 0))
 
         tk.Label(
-            dpi_scale_frame,
-            text="(100%=1.0, 125%=1.25, 150%=1.5)",
-            bg='#2D2D2D',
-            fg='#9E9E9E',
-            font=('Arial', 8)
+            dpi_scale_frame, text="(100%→1.0  125%→1.25  150%→1.5)",
+            bg=THEME["bg_dark"], fg=THEME["fg_secondary"],
+            font=THEME["font_small"]
         ).pack(side=tk.LEFT, padx=5)
 
-        # 语音识别API设置
-        self.create_section(main_frame, "🎤 语音识别 API", 1)
-        api_frame = tk.Frame(main_frame, bg='#2D2D2D')
-        api_frame.pack(fill=tk.X, pady=(0, 15))
+        # 百度OCR API配置区域（初始隐藏）
+        self.baidu_ocr_config_frame = tk.Frame(ocr_frame, bg=THEME["bg_dark"])
 
-        tk.Radiobutton(
-            api_frame, text="阿里云语音识别", variable=self.speech_api_var,
-            value="aliyun", bg='#2D2D2D', fg='white',
-            selectcolor='#4CAF50', activebackground='#2D2D2D',
-            font=('Arial', 10)
-        ).pack(anchor=tk.W)
-
-        tk.Radiobutton(
-            api_frame, text="百度语音识别", variable=self.speech_api_var,
-            value="baidu", bg='#2D2D2D', fg='white',
-            selectcolor='#4CAF50', activebackground='#2D2D2D',
-            font=('Arial', 10)
-        ).pack(anchor=tk.W, pady=(5, 0))
-
-        if SPEECH_API == "aliyun":
-            self.create_section(main_frame, "☁️ 阿里云配置", 2)
-            aliyun_frame = tk.Frame(main_frame, bg='#2D2D2D')
-            aliyun_frame.pack(fill=tk.X, pady=(0, 15))
-
-            self.create_input(aliyun_frame, "AppKey:", self.aliyun_appkey_var, 0)
-            self.create_input(aliyun_frame, "Token (可选，留空自动获取):", self.aliyun_token_var, 1)
-        else:
-            self.create_section(main_frame, "🔊 百度配置", 2)
-            baidu_frame = tk.Frame(main_frame, bg='#2D2D2D')
-            baidu_frame.pack(fill=tk.X, pady=(0, 15))
-
-            self.create_input(baidu_frame, "API Key:", self.baidu_api_key_var, 0)
-            self.create_input(baidu_frame, "Secret Key:", self.baidu_secret_key_var, 1)
-
-        # 百度OCR API配置（新增）
         tk.Label(
-            baidu_frame,
-            text="文字识别:",
-            bg='#2D2D2D',
-            fg='#4CAF50',
-            font=('Arial', 9, 'bold')
+            self.baidu_ocr_config_frame, text="百度OCR API 配置",
+            bg=THEME["bg_dark"], fg=THEME["fg_section"],
+            font=THEME["font_section"]
         ).pack(anchor=tk.W, pady=(15, 5))
 
-        self.create_input(baidu_frame, "OCR API Key:", self.baidu_ocr_api_key_var, 2)
-        self.create_input(baidu_frame, "OCR Secret Key:", self.baidu_ocr_secret_key_var, 3)
+        self.create_input(self.baidu_ocr_config_frame, "OCR API Key:", self.baidu_ocr_api_key_var, 0)
+        self.create_input(self.baidu_ocr_config_frame, "OCR Secret Key:", self.baidu_ocr_secret_key_var, 1)
 
-        self.create_section(main_frame, "🧠 通义千问配置", 3)
-        llm_frame = tk.Frame(main_frame, bg='#2D2D2D')
+        # 语音识别API设置
+        self.create_section(main_frame, "🎤  语音识别 API", 1)
+        api_frame = tk.Frame(main_frame, bg=THEME["bg_dark"])
+        api_frame.pack(fill=tk.X, pady=(0, 15))
+
+        def _rapi(text, val):
+            return tk.Radiobutton(
+                api_frame, text=text, variable=self.speech_api_var, value=val,
+                bg=THEME["bg_dark"], fg=THEME["fg_primary"],
+                selectcolor=THEME["accent_green"],
+                activebackground=THEME["bg_dark"],
+                font=THEME["font_body"],
+                command=self.toggle_speech_api
+            )
+
+        _rapi("阿里云语音识别", "aliyun").pack(anchor=tk.W)
+        _rapi("百度语音识别", "baidu").pack(anchor=tk.W, pady=(5, 0))
+
+        # 阿里云配置区域（动态切换）
+        self.aliyun_section_label = tk.Label(main_frame, text="☁  阿里云配置",
+                                              bg=THEME["bg_dark"], fg=THEME["fg_section"],
+                                              font=THEME["font_section"])
+        self.aliyun_config_frame = tk.Frame(main_frame, bg=THEME["bg_dark"])
+        self.create_input(self.aliyun_config_frame, "AppKey:", self.aliyun_appkey_var, 0)
+        self.create_input(self.aliyun_config_frame, "Token (可选，留空自动获取):", self.aliyun_token_var, 1)
+
+        # 百度语音识别配置区域（动态切换）
+        self.baidu_section_label = tk.Label(main_frame, text="🔊  百度配置",
+                                             bg=THEME["bg_dark"], fg=THEME["fg_section"],
+                                             font=THEME["font_section"])
+        self.baidu_config_frame = tk.Frame(main_frame, bg=THEME["bg_dark"])
+        self.create_input(self.baidu_config_frame, "API Key:", self.baidu_api_key_var, 0)
+        self.create_input(self.baidu_config_frame, "Secret Key:", self.baidu_secret_key_var, 1)
+
+        # 初始化显示对应的配置区域
+        if SPEECH_API == "aliyun":
+            self.show_aliyun_config()
+        else:
+            self.show_baidu_config()
+
+        # 初始化OCR引擎显示
+        self.toggle_ocr_engine()
+
+        self.create_section(main_frame, "🧠  通义千问配置", 3)
+        llm_frame = tk.Frame(main_frame, bg=THEME["bg_dark"])
         llm_frame.pack(fill=tk.X, pady=(0, 15))
 
         self.create_input(llm_frame, "API Key:", self.llm_api_key_var, 0)
 
-        model_frame = tk.Frame(llm_frame, bg='#2D2D2D')
+        model_frame = tk.Frame(llm_frame, bg=THEME["bg_dark"])
         model_frame.pack(fill=tk.X, pady=(10, 0))
 
         tk.Label(
-            model_frame, text="模型:", bg='#2D2D2D', fg='white',
-            font=('Arial', 9)
+            model_frame, text="模型:", bg=THEME["bg_dark"],
+            fg=THEME["fg_primary"], font=THEME["font_small"]
         ).pack(side=tk.LEFT)
 
         models = ["qwen-turbo", "qwen-plus", "qwen-max", "qwen-long"]
@@ -1364,44 +1322,88 @@ class SettingsWindow:
         )
         self.model_combobox.pack(side=tk.LEFT, padx=(10, 0))
 
-        button_frame = tk.Frame(self.window, bg='#3D3D3D', height=50)
+        # 创建按钮（固定在底部）
+        self.create_buttons()
+
+    def create_buttons(self):
+        """创建保存和取消按钮（固定在底部）"""
+        T = THEME
+        button_frame = tk.Frame(self.window, bg=T["bg_bar"], height=50)
         button_frame.pack(fill=tk.X, side=tk.BOTTOM)
+        button_frame.pack_propagate(False)
 
-        tk.Button(
-            button_frame, text="💾 保存", bg='#4CAF50', fg='white',
-            font=('Arial', 10, 'bold'), width=10, relief=tk.FLAT,
-            command=self.save_settings
-        ).pack(side=tk.LEFT, padx=15, pady=10)
+        def _btn(text, bg, cmd):
+            return tk.Button(
+                button_frame, text=text, bg=bg, fg=T["fg_primary"],
+                font=T["font_btn"], relief=tk.FLAT,
+                activebackground=bg, activeforeground=T["fg_primary"],
+                bd=0, padx=14, pady=6, cursor="hand2", command=cmd
+            )
 
-        tk.Button(
-            button_frame, text="[CANCEL] 取消", bg='#F44336', fg='white',
-            font=('Arial', 10, 'bold'), width=10, relief=tk.FLAT,
-            command=self.window.destroy
-        ).pack(side=tk.LEFT, padx=15, pady=10)
+        _btn("✓  保存", T["accent_green"], self.save_settings).pack(side=tk.LEFT, padx=12, pady=10)
+        _btn("✕  取消", T["accent_red"], self.window.destroy).pack(side=tk.LEFT, padx=0, pady=10)
 
     def create_section(self, parent, title, section_num):
-        section_frame = tk.Frame(parent, bg='#2D2D2D')
-        section_frame.pack(fill=tk.X, pady=(10 if section_num == 0 else 15, 0))
+        T = THEME
+        section_frame = tk.Frame(parent, bg=T["bg_dark"])
+        section_frame.pack(fill=tk.X, pady=(10 if section_num == 0 else 18, 0))
+
+        # 左色块装饰
+        tk.Frame(section_frame, bg=T["accent_purple"], width=3).pack(side=tk.LEFT, fill=tk.Y, padx=(0, 8))
 
         tk.Label(
-            section_frame, text=title, bg='#2D2D2D', fg='#FFA726',
-            font=('Arial', 10, 'bold')
-        ).pack(anchor=tk.W)
+            section_frame, text=title,
+            bg=T["bg_dark"], fg=T["fg_section"],
+            font=T["font_section"]
+        ).pack(anchor=tk.W, side=tk.LEFT)
 
     def create_input(self, parent, label, variable, padx):
-        input_frame = tk.Frame(parent, bg='#2D2D2D')
+        T = THEME
+        input_frame = tk.Frame(parent, bg=T["bg_dark"])
         input_frame.pack(fill=tk.X, pady=(10 if padx == 0 else 5, 0), padx=padx)
 
         tk.Label(
-            input_frame, text=label, bg='#2D2D2D', fg='white',
-            font=('Arial', 9), width=20, anchor=tk.W
+            input_frame, text=label,
+            bg=T["bg_dark"], fg=T["fg_secondary"],
+            font=T["font_small"], width=22, anchor=tk.W
         ).pack(side=tk.LEFT)
 
         entry = tk.Entry(
-            input_frame, textvariable=variable, bg='#3D3D3D', fg='white',
-            font=('Arial', 10), relief=tk.FLAT, show='*' if 'Key' in label or 'Token' in label else ''
+            input_frame, textvariable=variable,
+            bg=T["bg_mid"], fg=T["fg_primary"],
+            font=T["font_body"], relief=tk.FLAT,
+            insertbackground=T["fg_primary"],
+            show='*' if ('Key' in label or 'Token' in label) else ''
         )
-        entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=10)
+        entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(8, 0), ipady=3)
+
+    def toggle_ocr_engine(self):
+        """切换OCR引擎时动态显示/隐藏配置"""
+        if self.ocr_engine_var.get() == "baidu":
+            self.baidu_ocr_config_frame.pack(fill=tk.X, pady=(10, 0))
+        else:
+            self.baidu_ocr_config_frame.pack_forget()
+
+    def toggle_speech_api(self):
+        """切换语音API时动态显示对应配置"""
+        if self.speech_api_var.get() == "aliyun":
+            self.show_aliyun_config()
+        else:
+            self.show_baidu_config()
+
+    def show_aliyun_config(self):
+        """显示阿里云配置"""
+        self.aliyun_section_label.pack(anchor=tk.W, pady=(15, 0))
+        self.aliyun_config_frame.pack(fill=tk.X, pady=(0, 15))
+        self.baidu_section_label.pack_forget()
+        self.baidu_config_frame.pack_forget()
+
+    def show_baidu_config(self):
+        """显示百度配置"""
+        self.baidu_section_label.pack(anchor=tk.W, pady=(15, 0))
+        self.baidu_config_frame.pack(fill=tk.X, pady=(0, 15))
+        self.aliyun_section_label.pack_forget()
+        self.aliyun_config_frame.pack_forget()
 
     def save_settings(self):
         settings = {
@@ -1444,6 +1446,31 @@ class SettingsWindow:
 # ================= 主函数 =================
 def main():
     root = tk.Tk()
+
+    # ── ttk 深色主题（Combobox / Scrollbar） ──
+    style = ttk.Style(root)
+    style.theme_use("clam")
+    style.configure("TCombobox",
+        fieldbackground=THEME["bg_mid"],
+        background=THEME["bg_mid"],
+        foreground=THEME["fg_primary"],
+        selectbackground=THEME["accent_blue"],
+        selectforeground=THEME["fg_primary"],
+        bordercolor=THEME["bg_light"],
+        arrowcolor=THEME["fg_secondary"],
+        padding=4
+    )
+    style.map("TCombobox",
+        fieldbackground=[("readonly", THEME["bg_mid"])],
+        foreground=[("readonly", THEME["fg_primary"])]
+    )
+    style.configure("TScrollbar",
+        background=THEME["bg_mid"],
+        troughcolor=THEME["bg_dark"],
+        bordercolor=THEME["bg_dark"],
+        arrowcolor=THEME["fg_secondary"]
+    )
+
     app = TranslatorGUI(root)
     root.mainloop()
 
