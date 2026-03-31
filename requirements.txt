@@ -28,3 +28,11 @@ SpeechRecognition>=3.10.0
 
 # 音频设备访问（Windows 下需要，可能需要预安装）
 # pyaudio>=0.2.11  # 注意：在 Windows 下可能需要通过 pipwin 安装
+
+# OCR功能依赖 (基于NormCap技术实现)
+mss>=9.0.0           # 高性能截图库
+numpy>=1.24.0         # 数值计算支持
+# winsdk>=1.0.0b10      # Windows原生OCR (可选，需要Visual Studio)
+
+# 窗口操作（用于OCR截图定位）
+pywin32>=306

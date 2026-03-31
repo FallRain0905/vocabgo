@@ -18,5 +18,9 @@
       "system": "你是一个英语专家。请分析以下英语句子，特别是加下划线的单词，然后提供中文翻译。",
       "user": "请翻译以下英语句子：{text}"
     }
-  }
+  },
+  "ocr_enabled": true,
+  "ocr_hotkey": "f8",
+  "ocr_lang": "chi_sim+eng",
+  "dpi_scale": 2.0
 }
