@@ -58,8 +58,9 @@ import keyboard  # 用于全局快捷键
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-# 导入新的OCR引擎
+# 导入OCR引擎
 from ocr_engine_v2 import VocabGoOCR
+from baidu_ocr import BaiduOCR
 
 # ================= 配置加载 =================
 CONFIG_FILE = project_root / "config" / "qwen-config.json"
@@ -86,6 +87,12 @@ LLM_MODEL = config.get("model", "qwen-plus")
 SPEECH_API = config.get("speech_api", "aliyun")
 ALIYUN_APPKEY = config.get("aliyun_appkey", "")
 ALIYUN_TOKEN = config.get("aliyun_token", "")
+
+# 百度OCR API配置（用户提供的）
+BAI_DU_OCR_API_KEY = config.get("baidu_ocr_api_key", "x8o9repM7KgO525AiyzeFGma")
+BAI_DU_OCR_SECRET_KEY = config.get("baidu_ocr_secret_key", "i6hr5CVKwieQcnbVdwX8TqOHQYI8wPar")
+
+# 旧版百度配置（保持兼容性）
 BAI_DU_API_KEY = config.get("baidu_api_key", "")
 BAI_DU_SECRET_KEY = config.get("baidu_secret_key", "")
 
@@ -93,6 +100,8 @@ BAI_DU_SECRET_KEY = config.get("baidu_secret_key", "")
 OCR_ENABLED = config.get("ocr_enabled", True)
 OCR_HOTKEY = config.get("ocr_hotkey", "f8")
 OCR_LANG = config.get("ocr_lang", "chi_sim+eng")
+OCR_ENGINE = config.get("ocr_engine", "tesseract")  # "tesseract" 或 "baidu"
+DPI_SCALE = config.get("dpi_scale", 1.0)  # DPI缩放因子
 
 # 录音参数
 SAMPLE_RATE = 16000
@@ -317,16 +326,43 @@ class Translator:
             print(f"翻译失败: {e}")
             return "❌ 翻译失败"
 
-# ================= OCR 识别器（基于 Tesseract v2） =================
+# ================= OCR 识别器（支持多引擎） =================
 class OCRRecognizer:
     def __init__(self):
         self.ocr_engine = None
+        self.baidu_ocr = None
         self.available = False
+        self.engine_type = OCR_ENGINE  # "tesseract" 或 "baidu"
 
+        # 初始化选定的OCR引擎
+        self._initialize_engine()
+
+    def _initialize_engine(self):
+        """初始化选定的OCR引擎"""
         try:
-            self.ocr_engine = VocabGoOCR()
-            self.available = True
-            print("[SUCCESS] OCR引擎初始化成功")
+            if self.engine_type == "tesseract":
+                print("[INFO] 初始化Tesseract OCR引擎...")
+                self.ocr_engine = VocabGoOCR()
+                self.baidu_ocr = None
+                self.available = True
+                print("[SUCCESS] Tesseract OCR引擎初始化成功")
+
+            elif self.engine_type == "baidu":
+                if not BAI_DU_API_KEY or not BAI_DU_SECRET_KEY:
+                    print("[WARNING] 百度OCR API Key未配置")
+                    self.available = False
+                    return
+
+                print("[INFO] 初始化百度OCR引擎...")
+                self.baidu_ocr = BaiduOCR(BAI_DU_API_KEY, BAI_DU_SECRET_KEY)
+                self.ocr_engine = None
+                self.available = True
+                print("[SUCCESS] 百度OCR引擎初始化成功")
+
+            else:
+                print(f"[ERROR] 未知的OCR引擎类型: {self.engine_type}")
+                self.available = False
+
         except Exception as e:
             print(f"[FAILED] OCR引擎初始化失败: {e}")
             self.available = False
@@ -341,13 +377,25 @@ class OCRRecognizer:
             return "[FAILED] OCR 引擎不可用"
 
         try:
-            # 直接调用OCR引擎识别PIL图像
-            result = self.ocr_engine.recognize(image)
+            if self.engine_type == "tesseract":
+                # 使用Tesseract引擎
+                result = self.ocr_engine.recognize(image)
+                if result and result.text:
+                    return result.text
+                else:
+                    return "[FAILED] 未识别到文字"
 
-            if result and result.text:
-                return result.text
+            elif self.engine_type == "baidu":
+                # 使用百度OCR引擎
+                result = self.baidu_ocr.recognize(image)
+                if result.get("success") and result.get("text"):
+                    return result["text"]
+                else:
+                    error = result.get("error", "未知错误")
+                    return f"[FAILED] 百度OCR: {error}"
+
             else:
-                return "[FAILED] 未识别到文字"
+                return "[FAILED] 未知的OCR引擎"
 
         except Exception as e:
             print(f"OCR 识别失败: {e}")
@@ -1039,6 +1087,7 @@ class TranslatorGUI:
         OCR_HOTKEY = settings.get('ocr_hotkey', 'f8')
         OCR_LANG = settings.get('ocr_lang', 'chi_sim+eng')
         DPI_SCALE = settings.get('dpi_scale', 1.0)
+        OCR_ENGINE = settings.get('ocr_engine', 'tesseract')
 
         config['speech_api'] = SPEECH_API
         config['aliyun_appkey'] = ALIYUN_APPKEY
@@ -1057,10 +1106,18 @@ class TranslatorGUI:
         self.root.title(f"VocabGo 翻译助手 ({api_name})")
         self.translator.cache = {}
 
-        # 更新OCR识别器
+        # 更新OCR识别器（考虑引擎切换）
         self.ocr_recognizer = OCRRecognizer()
 
-        messagebox.showinfo("设置", "设置已保存！\n部分设置需要重启应用生效。")
+        # 根据OCR引擎类型显示不同消息
+        if self.ocr_recognizer.engine_type == "tesseract":
+            ocr_msg = "Tesseract OCR引擎"
+        elif self.ocr_recognizer.engine_type == "baidu":
+            ocr_msg = "百度OCR引擎"
+        else:
+            ocr_msg = "未知OCR引擎"
+
+        messagebox.showinfo("设置", f"设置已保存！\n当前OCR引擎: {ocr_msg}\n部分设置需要重启应用生效。")
 
 class SettingsWindow:
     def __init__(self, parent, apply_callback):
@@ -1079,6 +1136,8 @@ class SettingsWindow:
         self.aliyun_token_var = tk.StringVar(value=ALIYUN_TOKEN)
         self.baidu_api_key_var = tk.StringVar(value=BAI_DU_API_KEY)
         self.baidu_secret_key_var = tk.StringVar(value=BAI_DU_SECRET_KEY)
+        self.baidu_ocr_api_key_var = tk.StringVar(value=BAI_DU_OCR_API_KEY)
+        self.baidu_ocr_secret_key_var = tk.StringVar(value=BAI_DU_OCR_SECRET_KEY)
         self.llm_api_key_var = tk.StringVar(value=LLM_API_KEY)
         self.llm_model_var = tk.StringVar(value=LLM_MODEL)
 
@@ -1086,6 +1145,7 @@ class SettingsWindow:
         self.ocr_enabled_var = tk.BooleanVar(value=OCR_ENABLED)
         self.ocr_hotkey_var = tk.StringVar(value=OCR_HOTKEY)
         self.ocr_lang_var = tk.StringVar(value=OCR_LANG)
+        self.ocr_engine_var = tk.StringVar(value=OCR_ENGINE)
         self.dpi_scale_var = tk.StringVar(value=str(config.get("dpi_scale", "1.0")))
 
         self.create_widgets()
@@ -1109,6 +1169,48 @@ class SettingsWindow:
         self.create_section(main_frame, "📷 OCR功能设置", 0)
         ocr_frame = tk.Frame(main_frame, bg='#2D2D2D')
         ocr_frame.pack(fill=tk.X, pady=(0, 15))
+
+        # OCR引擎选择
+        ocr_engine_frame = tk.Frame(ocr_frame, bg='#2D2D2D')
+        ocr_engine_frame.pack(fill=tk.X, pady=(0, 10))
+
+        tk.Label(
+            ocr_engine_frame,
+            text="OCR引擎:",
+            bg='#2D2D2D',
+            fg='white',
+            font=('Arial', 10)
+        ).pack(side=tk.LEFT)
+
+        # OCR引擎选择变量
+        self.ocr_engine_var = tk.StringVar(value=OCR_ENGINE)
+        ocr_engine_choices = ["tesseract", "baidu"]
+
+        # Tesseract选项
+        tk.Radiobutton(
+            ocr_engine_frame,
+            text="Tesseract (免费，本地)",
+            variable=self.ocr_engine_var,
+            value="tesseract",
+            bg='#2D2D2D',
+            fg='white',
+            selectcolor='#4CAF50',
+            activebackground='#2D2D2D',
+            font=('Arial', 9)
+        ).pack(side=tk.LEFT, padx=(10, 0))
+
+        # 百度OCR选项
+        tk.Radiobutton(
+            ocr_engine_frame,
+            text="百度OCR (云服务)",
+            variable=self.ocr_engine_var,
+            value="baidu",
+            bg='#2D2D2D',
+            fg='white',
+            selectcolor='#4CAF50',
+            activebackground='#2D2D2D',
+            font=('Arial', 9)
+        ).pack(side=tk.LEFT, padx=(10, 0))
 
         # 启用OCR
         tk.Checkbutton(
@@ -1229,6 +1331,18 @@ class SettingsWindow:
             self.create_input(baidu_frame, "API Key:", self.baidu_api_key_var, 0)
             self.create_input(baidu_frame, "Secret Key:", self.baidu_secret_key_var, 1)
 
+        # 百度OCR API配置（新增）
+        tk.Label(
+            baidu_frame,
+            text="文字识别:",
+            bg='#2D2D2D',
+            fg='#4CAF50',
+            font=('Arial', 9, 'bold')
+        ).pack(anchor=tk.W, pady=(15, 5))
+
+        self.create_input(baidu_frame, "OCR API Key:", self.baidu_ocr_api_key_var, 2)
+        self.create_input(baidu_frame, "OCR Secret Key:", self.baidu_ocr_secret_key_var, 3)
+
         self.create_section(main_frame, "🧠 通义千问配置", 3)
         llm_frame = tk.Frame(main_frame, bg='#2D2D2D')
         llm_frame.pack(fill=tk.X, pady=(0, 15))
@@ -1296,11 +1410,14 @@ class SettingsWindow:
             'aliyun_token': self.aliyun_token_var.get(),
             'baidu_api_key': self.baidu_api_key_var.get(),
             'baidu_secret_key': self.baidu_secret_key_var.get(),
+            'baidu_ocr_api_key': self.baidu_ocr_api_key_var.get(),
+            'baidu_ocr_secret_key': self.baidu_ocr_secret_key_var.get(),
             'api_key': self.llm_api_key_var.get(),
             'model': self.llm_model_var.get(),
             'ocr_enabled': self.ocr_enabled_var.get(),
             'ocr_hotkey': self.ocr_hotkey_var.get().lower(),
             'ocr_lang': self.ocr_lang_var.get(),
+            'ocr_engine': self.ocr_engine_var.get(),
             'dpi_scale': float(self.dpi_scale_var.get())
         }
 
@@ -1310,6 +1427,11 @@ class SettingsWindow:
 
         if settings['speech_api'] == "baidu" and (not settings['baidu_api_key'] or not settings['baidu_secret_key']):
             messagebox.showerror("错误", "请输入百度 API Key 和 Secret Key！")
+            return
+
+        # 百度OCR API Key验证
+        if settings['ocr_engine'] == "baidu" and (not settings['baidu_ocr_api_key'] or not settings['baidu_ocr_secret_key']):
+            messagebox.showerror("错误", "百度OCR需要配置API Key和Secret Key！")
             return
 
         if not settings['api_key']:
