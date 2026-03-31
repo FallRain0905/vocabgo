@@ -335,11 +335,11 @@ class Translator:
         payload = {
             "model": LLM_MODEL,
             "messages": [
-                {"role": "system", "content": "你是一个极速翻译引擎。请直接给出英文单词或短语的中文意思，不要解释，不要标点。"},
+                {"role": "system", "content": "你是一个专业的英汉翻译引擎。请将英文文本翻译成中文，保持原有的格式和换行。"},
                 {"role": "user", "content": english_text}
             ],
             "temperature": config.get("temperature", 0.1),
-            "max_tokens": config.get("max_tokens", 100)
+            "max_tokens": config.get("max_tokens", 1000)
         }
 
         try:
@@ -773,10 +773,9 @@ class OCRWindow:
                 if text and text != last_text and not text.startswith("[FAILED]"):
                     last_text = text
 
-                    # 翻译
-                    first_line = text.split('\n')[0].strip()
-                    if first_line:
-                        chinese = self.translator.translate(first_line)
+                    # 翻译整个文本（不只是第一行）
+                    if text.strip():
+                        chinese = self.translator.translate(text)
 
                         # 更新界面
                         self.window.after(0, lambda t=text, c=chinese: self.update_display(t, c))
