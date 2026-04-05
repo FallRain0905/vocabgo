@@ -55,7 +55,9 @@ import base64
 import keyboard  # 用于全局快捷键
 
 # 添加项目根目录到路径
-project_root = Path(__file__).parent.parent
+# 获取脚本所在目录的绝对路径
+script_dir = Path(__file__).parent.absolute()
+project_root = script_dir.parent
 sys.path.insert(0, str(project_root))
 
 # 导入OCR引擎
@@ -359,7 +361,7 @@ class Translator:
             return translation
         except Exception as e:
             print(f"翻译失败: {e}")
-            return "❌ 翻译失败"
+            return "[FAILED] 翻译失败"
 
 # ================= OCR 识别器（支持多引擎） =================
 class OCRRecognizer:
@@ -516,7 +518,7 @@ class OCRWindow:
 
         tk.Label(
             info_frame,
-            text=f"① 点击「选区」拖选屏幕区域    ② 按 ~ 键启动/停止实时翻译    ③ 自动翻译",
+            text=f"① 点击「选区」拖选屏幕区域    ② 选择后自动启动实时翻译    ③ 按 ~ 键或按钮停止",
             bg=T["bg_mid"], fg=T["fg_secondary"],
             font=T["font_small"], justify=tk.LEFT
         ).pack(anchor=tk.W)
@@ -697,6 +699,12 @@ class OCRWindow:
             x2 = max(self.selection_start[0], event.x)
             y2 = max(self.selection_start[1], event.y)
 
+            # 避免区域太小
+            if x2 - x1 < 10 or y2 - y1 < 10:
+                print("[WARNING] 选择区域太小，忽略")
+                self.status_label.config(text="[WARNING] 区域太小，请重新选择")
+                return
+
             # 保存选择区域
             self.selected_coords = (x1, y1, x2, y2)
 
@@ -709,7 +717,11 @@ class OCRWindow:
 
             # 更新状态
             area_size = f"{x2-x1}x{y2-y1}"
-            self.status_label.config(text=f"📐 已选择区域 ({area_size})，按 ~ 键启动实时翻译")
+            self.status_label.config(text=f"[AREA] 已选择区域 ({area_size})，正在启动实时翻译...")
+
+            # 自动启动实时翻译
+            print(f"[INFO] 区域已选择: ({x1},{y1})-({x2},{y2}), 自动启动实时翻译")
+            self.start_realtime_translation()
 
     def cancel_selection(self, event):
         """取消选择"""
@@ -718,7 +730,7 @@ class OCRWindow:
         self.selection_window.destroy()
         self.window.state('normal')
         self.window.deiconify()
-        self.status_label.config(text="🟢 已取消，重新选择")
+        self.status_label.config(text="[READY] 已取消，重新选择")
 
     def toggle_realtime(self):
         """切换实时翻译"""
@@ -737,7 +749,7 @@ class OCRWindow:
         """启动实时翻译"""
         self.realtime_active = True
         self.stop_realtime = False
-        self.status_label.config(text="🔄 实时翻译中...")
+        self.status_label.config(text="[TRANS] 实时翻译中...")
         self.realtime_btn.config(text="停止翻译", bg=self.T["accent_red"])
 
         # 启动实时翻译线程
@@ -751,7 +763,7 @@ class OCRWindow:
         if self.realtime_active:
             self.realtime_active = False
             self.stop_realtime = True
-            self.status_label.config(text="⏸️ 实时翻译已停止")
+            self.status_label.config(text="[STOP] 实时翻译已停止")
             self.realtime_btn.config(text="实时翻译", bg=self.T["accent_blue"])
             print("[INFO] 实时翻译已停止")
 
@@ -779,7 +791,7 @@ class OCRWindow:
 
                         # 更新界面
                         self.window.after(0, lambda t=text, c=chinese: self.update_display(t, c))
-                        self.window.after(0, lambda: self.status_label.config(text="🔄 实时翻译中..."))
+                        self.window.after(0, lambda: self.status_label.config(text="[TRANS] 实时翻译中..."))
 
                 # 间隔0.5秒再识别一次，避免过于频繁
                 time.sleep(0.5)
@@ -955,11 +967,11 @@ class TranslatorGUI:
         inner = tk.Frame(button_frame, bg=T["bg_bar"])
         inner.pack(side=tk.LEFT, fill=tk.Y, padx=6, pady=6)
 
-        self.pause_button = self._make_btn(inner, "⏸  暂停", T["accent_red"], self.toggle_pause)
+        self.pause_button = self._make_btn(inner, "[||] 暂停", T["accent_red"], self.toggle_pause)
         self.pause_button.pack(side=tk.LEFT, padx=(0, 4))
 
         self._make_btn(inner, "清空", T["accent_gray"], self.clear_text).pack(side=tk.LEFT, padx=(0, 4))
-        self._make_btn(inner, "⚙  设置", T["accent_purple"], self.open_settings).pack(side=tk.LEFT, padx=(0, 4))
+        self._make_btn(inner, "[SET] 设置", T["accent_purple"], self.open_settings).pack(side=tk.LEFT, padx=(0, 4))
         self._make_btn(inner, "OCR", T["accent_amber"], self.open_ocr_window).pack(side=tk.LEFT)
 
         # 右侧：透明度 + 置顶
@@ -1021,11 +1033,11 @@ class TranslatorGUI:
                 self.pause_button.config(text="▶  继续", bg=THEME["accent_green"])
                 self.update_status("● 已暂停")
             else:
-                self.pause_button.config(text="⏸  暂停", bg=THEME["accent_red"])
+                self.pause_button.config(text="[||] 暂停", bg=THEME["accent_red"])
                 self.update_status("● 继续监听...")
         else:
             self.is_paused = False
-            self.pause_button.config(text="⏸  暂停", bg=THEME["accent_red"])
+            self.pause_button.config(text="[||] 暂停", bg=THEME["accent_red"])
 
     def clear_text(self):
         """清空文本"""
@@ -1045,15 +1057,15 @@ class TranslatorGUI:
                     continue
 
                 try:
-                    self.update_status("🟢 正在监听...")
+                    self.update_status("[READY] 正在监听...")
                     audio_data = self.recorder.record_until_silence()
 
                     if audio_data is not None:
-                        self.update_status("🔄 正在识别...")
+                        self.update_status("[TRANS] 正在识别...")
                         english = self.recognizer.recognize(audio_data)
 
                         if english:
-                            self.update_status("🧠 正在翻译...")
+                            self.update_status("[TRANS] 正在翻译...")
 
                             # 更新英文显示
                             self.root.after(0, lambda: self.english_text.delete(1.0, tk.END))
@@ -1177,7 +1189,7 @@ class SettingsWindow:
         title_frame.pack_propagate(False)
 
         tk.Label(
-            title_frame, text="  ⚙  VocabGo  ·  设置",
+            title_frame, text="  [SET] VocabGo  ·  设置",
             bg=T["bg_bar"], fg=T["fg_primary"],
             font=T["font_title"]
         ).pack(side=tk.LEFT, padx=8)
@@ -1356,7 +1368,7 @@ class SettingsWindow:
         # 初始化OCR引擎显示
         self.toggle_ocr_engine()
 
-        self.create_section(main_frame, "🧠  通义千问配置", 3)
+        self.create_section(main_frame, "[AI] 通义千问配置", 3)
         llm_frame = tk.Frame(main_frame, bg=THEME["bg_dark"])
         llm_frame.pack(fill=tk.X, pady=(0, 15))
 
@@ -1530,4 +1542,10 @@ def main():
     root.mainloop()
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        print(f"FATAL ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+        input("Press Enter to exit...")

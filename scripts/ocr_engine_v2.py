@@ -21,7 +21,7 @@ import time
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Protocol, List, Dict, Optional, Union, Tuple
+from typing import List, Dict, Optional, Union, Tuple
 
 # 图像处理库
 try:
@@ -106,7 +106,8 @@ class OcrResult:
     @property
     def mean_conf(self) -> float:
         """OCR置信度平均值"""
-        if conf_values := [float(w.get("conf", 0)) for w in self.words]:
+        conf_values = [float(w.get("conf", 0)) for w in self.words]
+        if conf_values:
             return sum(conf_values) / len(conf_values)
         return 0
 
@@ -240,7 +241,8 @@ class TesseractEngine:
     def _find_tesseract(self) -> str:
         """查找系统中的Tesseract可执行文件"""
         # 优先检查环境变量TESSDATA_PREFIX
-        if tessdata_prefix := os.environ.get("TESSDATA_PREFIX"):
+        tessdata_prefix = os.environ.get("TESSDATA_PREFIX")
+        if tessdata_prefix:
             tess_path = Path(tessdata_prefix)
             exe_path = tess_path / "tesseract.exe"
             if exe_path.exists():
@@ -261,7 +263,8 @@ class TesseractEngine:
 
         # 检查PATH环境变量
         import shutil
-        if tesseract_bin := shutil.which("tesseract"):
+        tesseract_bin = shutil.which("tesseract")
+        if tesseract_bin:
             logger.info(f"Tesseract从PATH找到: {tesseract_bin}")
             return tesseract_bin
 
