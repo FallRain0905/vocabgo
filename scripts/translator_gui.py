@@ -233,15 +233,15 @@ class SpeechRecognizer:
             sf.write(f, audio_data, SAMPLE_RATE)
 
         try:
-            # 阿里云一句话识别 API
-            url = f"https://nls-gateway.aliyuncs.com/stream/v1/asr?appkey={ALIYUN_APPKEY}"
+            # 阿里云一句话识别 API (使用简单的token认证)
+            url = f"https://nls-gateway.aliyuncs.com/stream/v1/asr?appkey={ALIYUN_APPKEY}&format=wav&sample_rate=16000"
 
             with open(temp_file, 'rb') as f:
                 audio_data_bytes = f.read()
 
             headers = {
-                'Content-Type': 'audio/wav; samplerate=16000',
-                'X-NLS-Token': self.aliyun_token
+                'Content-Type': 'application/octet-stream',
+                'X-NLS-Token': ALIYUN_TOKEN if ALIYUN_TOKEN else ''
             }
 
             response = requests.post(url, headers=headers, data=audio_data_bytes, timeout=10)
@@ -309,10 +309,21 @@ class SpeechRecognizer:
 
     def recognize(self, audio_data):
         """语音识别（根据配置选择API）"""
+        # 先尝试使用配置的API
         if SPEECH_API == "aliyun":
-            return self.recognize_aliyun(audio_data)
+            result = self.recognize_aliyun(audio_data)
+            if result:
+                return result
+        elif SPEECH_API == "baidu":
+            result = self.recognize_baidu(audio_data)
+            if result:
+                return result
         else:
-            return self.recognize_baidu(audio_data)
+            print(f"未知的语音识别API: {SPEECH_API}")
+
+        # 如果API失败，使用备用方案：返回提示信息
+        print("[INFO] 语音识别API失败，使用备用方案")
+        return "[语音识别暂不可用，请检查API配置]"
 
 # ================= 翻译类 =================
 class Translator:

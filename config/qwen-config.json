@@ -4,7 +4,7 @@
   "model": "qwen-plus",
   "temperature": 0.1,
   "max_tokens": 100,
-  "speech_api": "aliyun",
+  "speech_api": "baidu",
   "aliyun_appkey": "iAowaRSHS5RqDnKL",
   "aliyun_token": "26311eade12940d0aaf65a796691c503",
   "baidu_api_key": "x8o9repM7KgO525AiyzeFGma",
