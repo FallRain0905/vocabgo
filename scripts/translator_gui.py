@@ -276,7 +276,7 @@ class SpeechRecognizer:
         try:
             url = "https://vop.baidu.com/server_api"
             params = {
-                "dev_pid": 1737,
+                "dev_pid": 1537,  # 普通话(支持简单的英文识别)
                 "token": token,
                 "format": "wav",
                 "rate": 16000,

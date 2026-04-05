@@ -7,8 +7,9 @@
   "speech_api": "baidu",
   "aliyun_appkey": "iAowaRSHS5RqDnKL",
   "aliyun_token": "26311eade12940d0aaf65a796691c503",
-  "baidu_api_key": "x8o9repM7KgO525AiyzeFGma",
-  "baidu_secret_key": "i6hr5CVKwieQcnbVdwX8TqOHQYI8wPar",
+  "baidu_api_key": "1SmDGCphSDcqmebOlniGwVCv",
+  "baidu_secret_key": "NP708S4At9ECRY9xPLHNqcaRf6xj2gBm",
+  "baidu_app_id": "122641921",
   "prompts": {
     "listening": {
       "system": "你是一个极速翻译引擎。请直接给出英文单词或短语的中文意思，不要解释，不要标点。",
